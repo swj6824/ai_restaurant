@@ -10,23 +10,42 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+DB_NAME = os.environ.get("DB_NAME")
+DB_USER = os.environ.get("DB_USER")
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-^sq()&z@i18rh-&5_ilk&e7l%$v9%^r_j$5f(hx)u%d4-*5b(e"
-
+# SECRET_KEY = "django-insecure-^sq()&z@i18rh-&5_ilk&e7l%$v9%^r_j$5f(hx)u%d4-*5b(e"
+SECRET_KEY = "rHNU7ppw0G25pL6S5uDR5uWuIHxO0PfU0TzLUfUDoQlftGJSUrdJaojzPTllKClM"
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost").split(",")
 
+# HSTS 설정(1년)
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
+# HTTPS 강제 리다이렉트
+SECURE_SSL_REDIRECT = True
+
+# 쿠키를 HTTPS 전용으로만
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
 
 # Application definition
 
@@ -73,13 +92,31 @@ WSGI_APPLICATION = "proj.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": os.getenv("DB_NAME", "restaurant_db"),
+        "USER": os.getenv("DB_USER", "restaurant_user").strip(),
+        "PASSWORD": os.getenv("DB_PASSWORD", "Dnjswls12@").strip(),
+        "HOST": os.getenv(
+            "DB_HOST", "restaurant-db.crqceyaekccy.ap-northeast-2.rds.amazonaws.com"
+        ).strip(),
+        "PORT": int(os.getenv("DB_PORT", 3306)),
+        "OPTIONS": {
+            "charset": "utf8mb4",
+            "init_command": "SET NAMES utf8mb4",
+        },
     }
 }
 
+if os.environ.get("TEST"):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -103,7 +140,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "ko-kr"
 
 TIME_ZONE = "UTC"
 
@@ -121,3 +158,36 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+# Use Amazon
+if os.environ.get("S3_BUCKET"):
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3.S3Storage",
+            "OPTIONS": {
+                "bucket_name": os.environ.get("S3_BUCKET"),
+                "region_name": os.environ.get("S3_REGION", "ap-northeast-2"),
+                "custom_domain": os.environ.get("S3_CUSTOM_DOMAIN"),
+                "location": "media",
+                "default_acl": "public-read",
+                "querystring_auth": False,
+            },
+        },
+        "staticfiles": {
+            "BACKEND": "storages.backends.s3.S3Storage",
+            "OPTIONS": {
+                "bucket_name": os.environ.get("S3_BUCKET"),
+                "region_name": os.environ.get("S3_REGION", "ap-northeast-2"),
+                "custom_domain": os.environ.get("S3_CUSTOM_DOMAIN"),
+                "location": "static",
+                "default_acl": "public-read",
+                "querystring_auth": False,
+            },
+        },
+    }
+
+# print("Loaded DB_PASSWORD:", os.environ.get("DB_PASSWORD"))
+# print("DB_PORT raw:", repr(os.environ.get("DB_PORT")))
